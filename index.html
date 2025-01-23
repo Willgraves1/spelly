@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spelly - Document Editor</title>
+  <style>
+    /* General Styles */
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      width: 100%;
+      height: 50px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      position: fixed;
+      top: 0;
+      z-index: 10;
+    }
+
+    .top-bar h1 {
+      font-size: 18px;
+      margin: 0;
+      color: #38afff;
+    }
+
+    .doc-name {
+      margin-left: 20px;
+      border: none;
+      font-size: 16px;
+      background: transparent;
+      outline: none;
+      width: 200px;
+    }
+
+    .spacer {
+      flex-grow: 1;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      width: 100%;
+      height: 50px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      margin-top: 50px;
+      position: fixed;
+      z-index: 9;
+    }
+
+    .toolbar button {
+      padding: 8px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      color: #1a1919;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    .toolbar button:hover {
+      background: #cccccc;
+    }
+
+    /* Editor */
+    .editor-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 110px;
+    }
+
+    .editor {
+      width: 70%;
+      height: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      font-size: 16px;
+      line-height: 1.6;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #000;
+      outline: none;
+      overflow-y: auto;
+      border-radius: 5px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #screenOverlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(255, 204, 0, 0.2); /* Default to transparent yellow with low opacity */
+        pointer-events: none; /* Prevents blocking clicks */
+        z-index: 9999;
+        transition: background-color 0.3s ease; /* Smooth transition for color change */
+    }
+
+    .dropdown {
+      position: relative;
+      display: inline-block;
+      padding: 8px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      color: #1a1919;
+      cursor: pointer;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: white;
+      min-width: 150px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      z-index: 1000;
+    }
+
+    .dropdown-content button {
+      display: block;
+      width: 100%;
+      padding: 5px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    .word-count {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    /* Dark Mode */
+    .dark-mode {
+      background-color: #121212;
+      color: #f5f5f5;
+    }
+
+    .dark-mode .top-bar, 
+    .dark-mode .toolbar {
+      background: #1e1e1e;
+      color: #fff;
+      box-shadow: none;
+    }
+
+    .dark-mode .editor {
+      background: #242424;
+      color: #fff;
+      border: 1px solid #555;
+    }
+
+    /* File Input Hidden */
+    #file-input {
+      display: none;
+    }
+
+    /* Rich Text Editor Toolbar */
+    .editor-toolbar {
+      display: flex;
+      gap: 5px;
+      padding: 10px;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      justify-content: center;
+    }
+
+    .editor-toolbar button {
+      padding: 6px 10px;
+      border: none;
+      background: #ddd;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 3px;
+    }
+
+    .editor-toolbar button:hover {
+      background: #bbb;
+    }
+
+    .high-contrast {
+      background-color: #000 !important;
+      color: #ff0 !important;
+    }
+
+    .dyslexia-mode {
+      font-family: 'OpenDyslexic', Arial, sans-serif !important;
+    }
+
+    select {
+      padding: 5px;
+      font-size: 14px;
+      margin-right: 5%;
+      position: relative;
+      display: inline-block;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      color: #1a1919;
+      cursor: pointer;
+      background: #efefef;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <h1>Spelly</h1>
+    <input class="doc-name" type="text" value="Untitled Document">
+    <br><br>
+    <div class="word-count">Words: 0 | Characters: 0</div>
+    <div class="spacer"></div>
+    <div class="dropdown">
+        <button onclick="toggleDropdown()">Accessibility</button>
+        <div class="dropdown-content" id="accessibilityDropdown" onclick="event.stopPropagation()">
+          <button onclick="toggleTheme()">Dark Mode</button>
+          <button onclick="toggleDyslexia()">Dyslexia Mode</button>
+          <select id="dyslexia-font" onchange="changeDyslexiaFont(this.value)">
+            <option value="OpenDyslexic">Open Dyslexic</option>
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Comic Sans MS">Comic Sans</option>
+          </select>
+          <button onclick="toggleOverlay(event)">Toggle Overlay</button>
+          <input type="color" id="overlayColor" value="#ffcc00" onchange="changeOverlayColor(this.value)" onmousedown="event.stopPropagation()">
+        </div>
+      </div>
+      
+      <!-- Overlay (Initially Hidden) -->
+      <div id="screenOverlay"></div>      
+      
+      
+      <select onchange="changeFont(this.value)">
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Verdana">Verdana</option>
+      </select>
+    </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button onclick="exportSpellFile()">Download .spell</button>
+    <input type="file" id="file-input" accept=".spell" onchange="importSpellFile(event)">
+    <button onclick="document.getElementById('file-input').click()">Open .spell</button>
+        <button onclick="document.execCommand('bold', false, '')"><b>B</b></button>
+        <button onclick="document.execCommand('italic', false, '')"><i>I</i></button>
+        <button onclick="document.execCommand('underline', false, '')"><u>U</u></button>
+        <button onclick="document.execCommand('strikeThrough', false, '')"><s>S</s></button>
+        <button onclick="document.execCommand('justifyLeft', false, '')">Left</button>
+        <button onclick="document.execCommand('justifyCenter', false, '')">Center</button>
+        <button onclick="document.execCommand('justifyRight', false, '')">Right</button>
+        <button onclick="saveContent()">Save</button>
+      <button onclick="loadContent()">Load</button>
+    </div>
+  </div>
+
+  <!-- Rich Text Editor Toolbar -->
+  <div class="editor-toolbar">
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-container">
+    <div class="editor" contenteditable="true" spellcheck="true">
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    function toggleDyslexia() {
+      document.body.classList.toggle('dyslexia-mode');
+    }
+
+    function changeDyslexiaFont(font) {
+      document.body.style.fontFamily = font;
+    }
+
+    function toggleOverlay() {
+      const overlay = document.getElementById('overlay');
+      overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function changeOverlayColor(color) {
+      document.getElementById('overlay').style.backgroundColor = color + '50';
+    }
+
+    function exportSpellFile() {
+      const content = document.querySelector('.editor').innerHTML;
+      const blob = new Blob([content], { type: 'text/html' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'document.spell';
+      link.click();
+    }
+
+    function importSpellFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.querySelector('.editor').innerHTML = e.target.result;
+        updateWordCount();
+      };
+      reader.readAsText(file);
+    }
+
+    function saveContent() {
+      localStorage.setItem('spellyContent', document.querySelector('.editor').innerHTML);
+    }
+
+    function loadContent() {
+      document.querySelector('.editor').innerHTML = localStorage.getItem('spellyContent') || 'Start typing here...';
+      updateWordCount();
+    }
+
+    function updateWordCount() {
+      const text = document.querySelector('.editor').innerText.trim();
+      const words = text.length > 0 ? text.split(/\s+/).length : 0;
+      document.querySelector('.word-count').innerText = `Words: ${words} | Characters: ${text.length}`;
+    }
+
+    //for the accessibility dropdown
+
+    function toggleDropdown() {
+  const dropdown = document.getElementById('accessibilityDropdown');
+  dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener("click", function(event) {
+  const dropdown = document.getElementById('accessibilityDropdown');
+  const button = document.querySelector(".dropdown button");
+
+  if (!dropdown.contains(event.target) && event.target !== button) {
+    dropdown.style.display = 'none';
+  }
+});
+
+// Overlay Toggle
+let overlayEnabled = false;
+
+function toggleOverlay(event) {
+  event.stopPropagation();  // Prevent the dropdown from closing when clicking the button
+  const overlay = document.getElementById("screenOverlay");
+  overlayEnabled = !overlayEnabled;
+
+  if (overlayEnabled) {
+    overlay.style.display = "block";
+  } else {
+    overlay.style.display = "none";
+  }
+}
+
+function changeOverlayColor(color) {
+  const overlay = document.getElementById("screenOverlay");
+  overlay.style.backgroundColor = color + "80"; // Append "80" for transparency (hexadecimal opacity)
+}
+
+
+  </script>
+</body>
+</html>
